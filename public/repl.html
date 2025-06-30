@@ -460,7 +460,7 @@ try:
     print(f"Probable key: {probable_key}")
     
     # Get all notes
-    notes = score.flat.notes
+    notes = score.flatten().notes
     print(f"Notes in melody: {[n.name for n in notes]}")
     
 except Exception as e:
