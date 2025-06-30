@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.43.0/ace.js" crossorigin="anonymous"></script>
+    <title>Music21 Interactive REPL</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e8e8e8;
+            --panel: #2c2c2c;
+            --accent: #4caf50;
+            --border: #444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            line-height: 1.5;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        nav {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #dee2e6;
+            margin-top: 2rem;
+        }
+
+        .nav-link {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin: 0 0.25rem;
+        }
+
+        .nav-link:hover {
+            color: #4CAF50;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .launch-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            display: block;
+            width: fit-content;
+        }
+
+        .launch-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .launch-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 2px solid #dee2e6;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            background: #ccc;
+        }
+
+        .status-indicator.loading {
+            background: #ffd700;
+            animation: pulse 1s infinite;
+        }
+
+        .status-indicator.success {
+            background: #4caf50;
+        }
+
+        .status-indicator.error {
+            background: #f44336;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        #repl-container {
+            flex: 1;
+            display: flex;
+            min-height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin: 1rem 0;
+            border: 1px solid #e1e5e9;
+        }
+
+        #repl-container.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        #editor {
+            flex: 0 0 60%;
+            min-width: 0;
+            border-right: 1px solid #e1e5e9;
+            background: #1e1e1e;
+        }
+
+        #editor .ace_gutter {
+            background: #1e1e1e;
+            color: #858585;
+            border-right: 1px solid #333;
+        }
+
+        #side {
+            flex: 1;
+            max-width: 40%;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+        }
+
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            transition: outline 0.1s ease-in-out;
+            min-height: 60px;
+        }
+
+        #controls.drag-over {
+            outline: 2px dashed #4CAF50;
+            outline-offset: -6px;
+            background: #f0f8f0;
+        }
+
+        #run-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: #2c3e50;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(44,62,80,0.2);
+        }
+
+        #run-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #run-btn:hover:not(:disabled) {
+            background: #34495e;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(44,62,80,0.3);
+        }
+
+        #file-picker {
+            font-size: 0.85rem;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 2px;
+        }
+
+        #file-picker::-webkit-file-upload-button,
+        #file-picker::file-selector-button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            background: #ffffff;
+            color: #495057;
+            cursor: pointer;
+            border: 1px solid #ced4da;
+            transition: all 0.2s ease;
+        }
+
+        #file-picker::-webkit-file-upload-button:hover,
+        #file-picker::file-selector-button:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        #repl-status {
+            margin-left: auto;
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 8px 12px;
+            background: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        #output {
+            flex: 1;
+            overflow: auto;
+            background: #1e1e1e;
+            color: #f8f8f2;
+            font: 14px/1.5 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            padding: 20px;
+            white-space: pre-wrap;
+            border-top: 1px solid #333;
+        }
+
+        .examples {
+            background: #f0f8ff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #0066cc;
+            box-shadow: 0 2px 8px rgba(0,102,204,0.1);
+        }
+
+        .examples h3 {
+            margin: 0 0 1rem 0;
+            color: #0052a3;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .example-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 4px 6px 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,102,204,0.2);
+        }
+
+        .example-btn:hover {
+            background: #0052a3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,102,204,0.3);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Status indicator improvements */
+        .status-indicator.success {
+            background: #28a745;
+        }
+
+        .status-indicator.loading {
+            background: #007bff;
+        }
+
+        .status-indicator.error {
+            background: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="index.html" class="nav-link">Progression</a> |
+        <a href="renderScore.html" class="nav-link">Score Demo</a> |
+        <a href="basic.html" class="nav-link">Basic</a> |
+        <a href="repl.html" class="nav-link">REPL</a>
+    </nav>
+    
+    <h1>🎼 Music21 Interactive REPL</h1>
+    <p class="subtitle">Write and execute music21 code interactively in your browser</p>
+
+    <button class="launch-button" id="launch-btn" onclick="initializePyodide()">🚀 Launch Music21</button>
+
+    <div class="status-container">
+        <div class="status-item" id="loading-status">
+            <div class="status-indicator"></div>
+            <span>Click "Launch Music21" to get started</span>
+        </div>
+    </div>
+
+    <div class="examples" id="examples" style="display: none;">
+        <h3>📝 Quick Examples</h3>
+        <button class="example-btn" onclick="loadExample('basic')">Basic Note</button>
+        <button class="example-btn" onclick="loadExample('chord')">Chord</button>
+        <button class="example-btn" onclick="loadExample('scale')">Scale</button>
+        <button class="example-btn" onclick="loadExample('progression')">Progression</button>
+        <button class="example-btn" onclick="loadExample('analysis')">Analysis</button>
+    </div>
+
+    <div id="repl-container" class="disabled">
+        <div id="editor"># Welcome to the Music21 Interactive REPL!
+# 
+# This is a fully interactive Python environment with music21 preloaded.
+# You can write any Python code here and execute it with Shift+Enter or the Run button.
+# 
+# Try some basic music21 examples:
+
+from music21 import note, chord, scale, stream
+
+# Create a simple note
+n = note.Note("C4")
+print(f"Note: {n.name} (octave {n.octave})")
+
+# Create a chord
+c = chord.Chord(["C4", "E4", "G4"])
+print(f"Chord: {c.commonName}")
+
+# Create a scale
+s = scale.MajorScale("C")
+print(f"C Major scale: {[n.name for n in s.pitches]}")</div>
+        <div id="side">
+            <div id="controls">
+                <button id="run-btn" disabled>▶ Run (Shift+Enter)</button>
+                <input id="file-picker" type="file" />
+                <span id="repl-status">Loading...</span>
+            </div>
+            <pre id="output">Click "Launch Music21" to start the interactive environment...</pre>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        let pyodide;
+        let editor;
+        const STORAGE_KEY = "music21-repl.code";
+
+        const examples = {
+            basic: `# Basic note creation and manipulation
+from music21 import note, pitch
+
+# Create a note
+n = note.Note("C#4")
+print(f"Note: {n.name} {n.octave}")
+print(f"MIDI number: {n.pitch.midi}")
+
+# Transpose the note
+n_transposed = n.transpose("M3")  # Major third up
+print(f"Transposed: {n_transposed.nameWithOctave}")`,
+
+            chord: `# Chord creation and analysis
+from music21 import chord, roman, key
+
+# Create chords in different ways
+c1 = chord.Chord(["C4", "E4", "G4", "B4"])
+print(f"Chord 1: {c1.commonName}")
+
+# Roman numeral in a key
+k = key.Key("F")
+r = roman.RomanNumeral("V7", k)
+print(f"V7 in F major: {r.pitches}")
+print(f"Chord symbol: {r.figure}")`,
+
+            scale: `# Scale and mode exploration
+from music21 import scale, interval
+
+# Different scale types
+major = scale.MajorScale("D")
+minor = scale.MinorScale("B")
+dorian = scale.DorianScale("A")
+
+print("D Major:", [n.name for n in major.pitches])
+print("B Minor:", [n.name for n in minor.pitches])
+print("A Dorian:", [n.name for n in dorian.pitches])
+
+# Scale degrees
+print("\\nScale degrees in D major:")
+for i in range(1, 8):
+    degree = major.pitchFromDegree(i)
+    print(f"  {i}: {degree.name}")`,
+
+            progression: `# Chord progression generation
+from music21 import roman, key, stream, meter
+
+# Set up key and time signature
+k = key.Key("G")
+s = stream.Stream()
+s.append(meter.TimeSignature('4/4'))
+s.append(k)
+
+# Common progression: I-vi-IV-V
+progression = ["I", "vi", "IV", "V"]
+
+for rn_str in progression:
+    rn = roman.RomanNumeral(rn_str, k)
+    print(f"{rn_str} in {k.name}: {[p.name for p in rn.pitches]}")`,
+
+            analysis: `# Musical analysis
+from music21 import converter, analysis, key
+
+# Create a simple melody
+melody_abc = """
+X:1
+T:Simple Melody
+M:4/4
+L:1/4
+K:C
+C D E F | G A B c |
+"""
+
+try:
+    score = converter.parse(melody_abc)
+    print("Parsed melody successfully!")
+    
+    # Analyze key
+    key_analysis = analysis.discrete.KrumhanslSchmuckler()
+    probable_key = key_analysis.getSolution(score)
+    print(f"Probable key: {probable_key}")
+    
+    # Get all notes
+    notes = score.flat.notes
+    print(f"Notes in melody: {[n.name for n in notes]}")
+    
+except Exception as e:
+    print(f"Analysis error: {e}")
+    # Fallback simple analysis
+    from music21 import note, analysis
+    notes = [note.Note(n) for n in ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"]]
+    print("Simple scale:", [n.name for n in notes])`
+        };
+
+        function updateStatus(status, message) {
+            const element = document.getElementById('loading-status');
+            const indicator = element.querySelector('.status-indicator');
+            const text = element.querySelector('span');
+
+            indicator.className = 'status-indicator ' + status;
+            text.textContent = message;
+        }
+
+        function updateReplStatus(message) {
+            document.getElementById('repl-status').textContent = message;
+        }
+
+        async function initializePyodide() {
+            const launchBtn = document.getElementById('launch-btn');
+            const output = document.getElementById('output');
+            
+            try {
+                launchBtn.disabled = true;
+                launchBtn.textContent = '⏳ Loading...';
+                
+                updateStatus('loading', 'Loading Pyodide...');
+                updateReplStatus('Loading Pyodide...');
+                
+                pyodide = await loadPyodide({
+                    stdout: (s) => { output.textContent += s + '\\n'; },
+                    stderr: (s) => { output.textContent += 'Error: ' + s + '\\n'; }
+                });
+                
+                updateStatus('loading', 'Loading micropip...');
+                updateReplStatus('Loading micropip...');
+                await pyodide.loadPackage("micropip");
+                const micropip = pyodide.pyimport("micropip");
+                
+                updateStatus('loading', 'Installing music21...');
+                updateReplStatus('Installing music21...');
+                await micropip.install("./dist/music21-9.6.0b3+pyodide-py3-none-any.whl");
+
+                updateStatus('loading', 'Setting up environment...');
+                updateReplStatus('Setting up environment...');
+                
+                // Initialize music21 and display welcome message
+                await pyodide.runPythonAsync(`
+import music21
+print("Music21 Interactive REPL Ready!")
+print(f"Music21 version: {music21.__version__}")
+print("Type your code in the editor and press Shift+Enter to run!")
+print("=" * 50)
+`);
+
+                updateStatus('success', 'Music21 REPL ready!');
+                updateReplStatus('Ready');
+                
+                // Enable the REPL
+                document.getElementById('repl-container').classList.remove('disabled');
+                document.getElementById('run-btn').disabled = false;
+                document.getElementById('examples').style.display = 'block';
+                launchBtn.style.display = 'none';
+                
+                // Initialize Ace editor
+                initializeEditor();
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                updateStatus('error', 'Failed to load music21. Please refresh the page.');
+                updateReplStatus('Error');
+                output.textContent += `Error: ${error.message}\\n`;
+                
+                launchBtn.disabled = false;
+                launchBtn.textContent = '🚀 Launch Music21';
+            }
+        }
+
+        function initializeEditor() {
+            editor = ace.edit("editor", {
+                mode: "ace/mode/python",
+                theme: "ace/theme/monokai",
+                fontSize: "14px",
+            });
+            
+            editor.session.setTabSize(4);
+            editor.session.setUseSoftTabs(true);
+            
+            // Load saved code or use default
+            const savedCode = localStorage.getItem(STORAGE_KEY);
+            if (savedCode) {
+                editor.setValue(savedCode, -1);
+            }
+            
+            // Auto-save on change
+            editor.session.on("change", () => {
+                localStorage.setItem(STORAGE_KEY, editor.getValue());
+            });
+
+            // Add run command
+            editor.commands.addCommand({
+                name: "run",
+                bindKey: { win: "Shift-Enter", mac: "Shift-Enter" },
+                exec: runCode,
+            });
+
+            editor.focus();
+        }
+
+        async function runCode() {
+            if (!pyodide || !editor) return;
+            
+            const code = editor.getValue();
+            const output = document.getElementById('output');
+            const runBtn = document.getElementById('run-btn');
+            
+            output.textContent = '';
+            updateReplStatus('Running...');
+            runBtn.disabled = true;
+            
+            try {
+                const result = await pyodide.runPythonAsync(code);
+                if (result !== undefined) {
+                    output.textContent += String(result) + '\\n';
+                }
+                updateReplStatus('Ready');
+            } catch (error) {
+                output.textContent += `Error: ${error}\\n`;
+                updateReplStatus('Error');
+                console.error(error);
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+
+        function loadExample(exampleName) {
+            if (editor && examples[exampleName]) {
+                editor.setValue(examples[exampleName], -1);
+                editor.focus();
+            }
+        }
+
+        async function handleFile(file) {
+            if (!file || !pyodide) return;
+            
+            try {
+                const text = await file.text();
+                const bytes = new TextEncoder().encode(text);
+                pyodide.FS.writeFile(file.name, bytes);
+                updateReplStatus(`Loaded "${file.name}"`);
+                
+                // If it's a Python file, offer to load it in editor
+                if (file.name.endsWith('.py')) {
+                    if (confirm(`Load ${file.name} into the editor?`)) {
+                        editor.setValue(text, -1);
+                    }
+                }
+            } catch (error) {
+                updateReplStatus(`File error: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('run-btn').addEventListener('click', runCode);
+        document.getElementById('file-picker').addEventListener('change', (e) => {
+            handleFile(e.target.files?.[0]);
+        });
+
+        // Drag & drop support
+        const dropZone = document.getElementById('controls');
+        
+        ['dragenter', 'dragover'].forEach((type) => {
+            dropZone.addEventListener(type, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach((type) => {
+            dropZone.addEventListener(type, (e) => {
+                e.preventDefault();
+                if (type === 'drop') {
+                    const file = e.dataTransfer?.files?.[0];
+                    handleFile(file);
+                }
+                dropZone.classList.remove('drag-over');
+            });
+        });
+    </script>
+</body>
+
+</html> 

@@ -1,0 +1,11 @@
+# For more details on how to configure Wrangler, refer to:
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "music21-pyodide"
+compatibility_date = "2025-06-14"
+
+[assets]
+directory = "./public"
+
+[observability]
+enabled = true

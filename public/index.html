@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.0/build/opensheetmusicdisplay.min.js"></script>
+    <title>Chord Progression Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        nav {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .nav-link {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin: 0 0.25rem;
+        }
+
+        .nav-link:hover {
+            color: #4CAF50;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .controls-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin: 1.5rem 0;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, input[type="number"] {
+            padding: 0.5rem;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .btn-accent {
+            background: #ff6b35;
+            color: white;
+        }
+
+        .btn-accent:hover {
+            background: #e55a2b;
+            transform: translateY(-1px);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4CAF50;
+        }
+
+        #score {
+            width: 100%;
+            min-height: 300px;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .loading {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 2rem;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .status-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 2px solid #dee2e6;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            background: #ccc;
+            padding: 0px;
+        }
+
+        .status-indicator.loading {
+            background: #ffd700;
+            animation: pulse 1s infinite;
+        }
+
+        .status-indicator.success {
+            background: #4caf50;
+        }
+
+        .status-indicator.error {
+            background: #f44336;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .controls-container.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .launch-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            display: block;
+            width: fit-content;
+        }
+
+        .launch-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .launch-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="index.html" class="nav-link">Progression</a> |
+        <a href="renderScore.html" class="nav-link">Score Demo</a> |
+        <a href="basic.html" class="nav-link">Basic</a> |
+        <a href="repl.html" class="nav-link">REPL</a>
+    </nav>
+    
+    <h1>🎹 Chord Progression Generator</h1>
+    <p class="subtitle">Demo of how to generate chord progressions using music21 in browser</p>
+
+    <button class="launch-button" id="launch-btn" onclick="initializePyodide()">🚀 Launch Music21</button>
+
+    <div class="status-container">
+        <div class="status-item" id="loading-status">
+            <div class="status-indicator"></div>
+            <span>Click "Launch Music21" to get started</span>
+        </div>
+    </div>
+
+    <div class="controls-container disabled" id="controls">
+        <div class="control-group">
+            <label>Chord Progression</label>
+            <div class="control-row">
+                <select id="progression-select">
+                    <option value="I-V-vi-IV">I-V-vi-IV (Pop Progression)</option>
+                    <option value="vi-IV-I-V">vi-IV-I-V (Pop Variant)</option>
+                    <option value="ii-V-I">ii-V-I (Jazz Standard)</option>
+                    <option value="I-vi-ii-V">I-vi-ii-V (Circle Progression)</option>
+                    <option value="I-IV-V-I">I-IV-V-I (Classic Cadence)</option>
+                    <option value="vi-ii-V-I">vi-ii-V-I (Minor Start)</option>
+                    <option value="Imaj7-vi7-ii7-V7">Jazz 7ths Progression</option>
+                    <option value="random">🎲 Random Progression</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Key & Settings</label>
+            <div class="control-row">
+                <select id="key-select">
+                    <option value="C">C Major</option>
+                    <option value="G">G Major</option>
+                    <option value="D">D Major</option>
+                    <option value="A">A Major</option>
+                    <option value="E">E Major</option>
+                    <option value="B">B Major</option>
+                    <option value="F#">F# Major</option>
+                    <option value="F">F Major</option>
+                    <option value="Bb">Bb Major</option>
+                    <option value="Eb">Eb Major</option>
+                    <option value="Ab">Ab Major</option>
+                    <option value="Db">Db Major</option>
+                </select>
+                
+                <label style="margin: 0;">Repeats:</label>
+                <input type="number" id="repeats" value="1" min="1" max="8" style="width: 80px;">
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="arpeggiate">
+                    <label style="margin: 0;">Arpeggiate</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button class="btn btn-primary" onclick="generateProgression()">🎵 Generate Progression</button>
+            <button class="btn btn-secondary" onclick="randomizeAll()">🎲 Surprise Me!</button>
+        </div>
+    </div>
+
+    <div id="score">
+        <div class="loading">Select options above and click "Generate Progression" to create music!</div>
+    </div>
+
+    <script type="text/javascript">
+        let pyodide;
+        let isLoading = false;
+
+        function updateStatus(status, message) {
+            const element = document.getElementById('loading-status');
+            const indicator = element.querySelector('.status-indicator');
+            const text = element.querySelector('span');
+
+            indicator.className = 'status-indicator ' + status;
+            text.textContent = message;
+        }
+
+        // Initialize Pyodide when user clicks the launch button
+        async function initializePyodide() {
+            const launchBtn = document.getElementById('launch-btn');
+            try {
+                // Disable the launch button during loading
+                launchBtn.disabled = true;
+                launchBtn.textContent = '⏳ Loading...';
+                
+                updateStatus('loading', 'Loading Pyodide...');
+                pyodide = await loadPyodide();
+                
+                updateStatus('loading', 'Loading micropip...');
+                await pyodide.loadPackage("micropip");
+                const micropip = pyodide.pyimport("micropip");
+                
+                updateStatus('loading', 'Installing music21...');
+                await micropip.install("./dist/music21-9.6.0b3+pyodide-py3-none-any.whl");
+
+                updateStatus('loading', 'Setting up Python environment...');
+                // Set up the Python environment with all the chord progression code
+                pyodide.runPython(`
+import random
+from music21 import chord, harmony, pitch, duration, key, stream, note, meter, tempo, roman
+
+def generate_progression_from_romans(roman_list, key_name='C', repeats=1, arpeggiate=False):
+    """Generate a music21 score from Roman numeral progression."""
+    k = key.Key(key_name)
+    s = stream.Score()
+    s.append(meter.TimeSignature('4/4'))
+    s.append(tempo.TempoIndication(number=120))
+    
+    part = stream.Part()
+    part.append(key.KeySignature(k.sharps))
+    
+    for repeat in range(repeats):
+        for rn_str in roman_list:
+            rn = roman.RomanNumeral(rn_str, k)
+            
+            # Create chord symbol with actual chord name (not Roman numeral)
+            # Get the chord and convert to chord symbol notation
+            chord_obj = chord.Chord(rn.pitches)
+            chord_name = harmony.chordSymbolFigureFromChord(chord_obj)
+            
+            # Add chord symbol above the music  
+            chord_symbol = harmony.ChordSymbol(chord_name)
+            chord_symbol.offset = part.highestTime
+            part.insert(chord_symbol.offset, chord_symbol)
+            
+            if arpeggiate:
+                # Create arpeggiated version with exactly 4 quarter notes
+                chord_pitches = list(rn.pitches)
+                
+                # Ensure we have exactly 4 notes by adding octave if needed
+                if len(chord_pitches) == 3:
+                    # Add octave of root
+                    octave_root = chord_pitches[0].transpose(12)
+                    chord_pitches.append(octave_root)
+                elif len(chord_pitches) > 4:
+                    # Take only first 4 pitches
+                    chord_pitches = chord_pitches[:4]
+                elif len(chord_pitches) < 3:
+                    # For incomplete chords, duplicate some notes
+                    while len(chord_pitches) < 4:
+                        chord_pitches.append(chord_pitches[0].transpose(12))
+                
+                # Create 4 quarter notes
+                for i, p in enumerate(chord_pitches[:4]):
+                    n = note.Note(p)
+                    n.duration = duration.Duration(quarterLength=1.0)
+                    part.append(n)
+            else:
+                # Create block chord
+                c = chord.Chord(rn.pitches)
+                c.duration = duration.Duration('whole')
+                part.append(c)
+    
+    s.append(part)
+    return s
+
+def generate_random_progression(num_chords=4):
+    """Generate a random chord progression."""
+    common_chords = ['I', 'V', 'vi', 'IV', 'ii', 'iii']
+    seventh_chords = ['Imaj7', 'V7', 'vi7', 'IVmaj7', 'ii7', 'iii7']
+    
+    use_sevenths = random.choice([True, False])
+    chord_pool = seventh_chords if use_sevenths else common_chords
+    
+    return [random.choice(chord_pool) for _ in range(num_chords)]
+
+def music21ScoreToXML(obj):
+    """Convert music21 score to XML string."""
+    from music21.musicxml.m21ToXml import GeneralObjectExporter
+    
+    gex = GeneralObjectExporter()
+    score = gex.fromGeneralObject(obj)
+    
+    try:
+        for part in score.parts:
+            if not part.partName:
+                part.partName = " "
+    except:
+        pass
+    
+    bytesOut = gex.parseWellformedObject(score)
+    return bytesOut.decode("utf-8")
+                `);
+
+                updateStatus('success', 'Music21 loaded successfully. Ready to generate chord progressions!');
+                
+                // Enable the controls
+                document.getElementById('controls').classList.remove('disabled');
+                
+                // Hide the launch button since we're ready
+                launchBtn.style.display = 'none';
+                
+                console.log("Music21 initialized successfully");
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                updateStatus('error', 'Failed to load music21. Please refresh the page.');
+                showError('Failed to load music21. Please refresh the page. Error: ' + error.message);
+                
+                // Re-enable the launch button on error
+                launchBtn.disabled = false;
+                launchBtn.textContent = '🚀 Launch Music21';
+            }
+        }
+
+        // Don't start automatically - wait for user to click the launch button
+        // initializePyodide();
+
+        // Progression mappings
+        const progressions = {
+            'I-V-vi-IV': ['I', 'V', 'vi', 'IV'],
+            'vi-IV-I-V': ['vi', 'IV', 'I', 'V'],
+            'ii-V-I': ['ii', 'V', 'I'],
+            'I-vi-ii-V': ['I', 'vi', 'ii', 'V'],
+            'I-IV-V-I': ['I', 'IV', 'V', 'I'],
+            'vi-ii-V-I': ['vi', 'ii', 'V', 'I'],
+            'Imaj7-vi7-ii7-V7': ['Imaj7', 'vi7', 'ii7', 'V7'],
+        };
+
+        function showError(message) {
+            document.getElementById('score').innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function showLoading() {
+            document.getElementById('score').innerHTML = '<div class="loading">Generating music... 🎵</div>';
+        }
+
+        async function generateProgression() {
+            if (isLoading) return;
+            
+            if (!pyodide) {
+                showError('Music21 is still loading. Please wait a moment and try again.');
+                return;
+            }
+
+            isLoading = true;
+            showLoading();
+
+            try {
+                const progressionKey = document.getElementById('progression-select').value;
+                const key = document.getElementById('key-select').value;
+                const repeats = parseInt(document.getElementById('repeats').value);
+                const arpeggiate = document.getElementById('arpeggiate').checked;
+
+                console.log('Generating with:', { progressionKey, key, repeats, arpeggiate });
+
+                let romanList;
+                if (progressionKey === 'random') {
+                    console.log('Generating random progression...');
+                    romanList = pyodide.runPython('generate_random_progression()');
+                } else {
+                    romanList = progressions[progressionKey];
+                }
+
+                console.log('Roman list:', romanList);
+
+                // Test if function exists
+                const functionExists = pyodide.runPython('callable(generate_progression_from_romans)');
+                console.log('Function exists:', functionExists);
+
+                if (!functionExists) {
+                    throw new Error('generate_progression_from_romans function is not defined');
+                }
+
+                // Generate the score
+                pyodide.globals.set('roman_list', romanList);
+                pyodide.globals.set('key_name', key);
+                pyodide.globals.set('repeats', repeats);
+                pyodide.globals.set('arpeggiate', arpeggiate);
+
+                console.log('Calling generate_progression_from_romans...');
+                const xml = pyodide.runPython(`
+score = generate_progression_from_romans(roman_list, key_name, repeats, arpeggiate)
+music21ScoreToXML(score)
+                `);
+
+                console.log('Generated XML length:', xml.length);
+                renderScore("score", xml);
+            } catch (error) {
+                console.error('Error generating progression:', error);
+                showError('Error generating progression: ' + error.message);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        function randomizeAll() {
+            // Randomize progression
+            const progressionSelect = document.getElementById('progression-select');
+            const options = Array.from(progressionSelect.options);
+            const randomOption = options[Math.floor(Math.random() * (options.length - 1))]; // Exclude 'random' option
+            progressionSelect.value = randomOption.value;
+            
+            // Randomize key
+            const keySelect = document.getElementById('key-select');
+            const keyOptions = Array.from(keySelect.options);
+            keySelect.value = keyOptions[Math.floor(Math.random() * keyOptions.length)].value;
+            
+            // Randomize repeats (1-4)
+            document.getElementById('repeats').value = Math.floor(Math.random() * 4) + 1;
+            
+            // Randomize arpeggiate
+            document.getElementById('arpeggiate').checked = Math.random() > 0.7;
+            
+            // Generate immediately
+            generateProgression();
+        }
+
+        // OpenSheetMusicDisplay rendering
+        const osmd_options = {
+            autoResize: true,
+            drawTitle: false,
+            backend: "canvas",
+        };
+
+        function renderScore(div_id, xml_data) {
+            const container = document.getElementById(div_id);
+            container.innerHTML = '';
+            
+            try {
+                let xml_data_doc = new DOMParser().parseFromString(xml_data, "application/xml");
+                let openSheetMusicDisplay = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, osmd_options);
+                
+                openSheetMusicDisplay.load(xml_data_doc)
+                    .then(() => {
+                        openSheetMusicDisplay.render();
+                    })
+                    .catch(error => {
+                        console.error('Rendering error:', error);
+                        showError('Error rendering music notation');
+                    });
+            } catch (error) {
+                console.error('Parse error:', error);
+                showError('Error parsing music data');
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                generateProgression();
+            } else if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                randomizeAll();
+            }
+        });
+
+    </script>
+</body>
+
+</html>
