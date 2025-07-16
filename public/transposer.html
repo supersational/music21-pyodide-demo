@@ -131,6 +131,10 @@
             padding: 1rem;
             border: 1px solid #e1e5e9;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        .part-list-container.visible {
+            display: block;
         }
 
         .part-item {
@@ -177,6 +181,10 @@
             gap: 1rem;
             margin: 2rem 0;
             align-items: center;
+            display: none;
+        }
+        .action-buttons.visible {
+            display: flex;
         }
         .update-button {
             padding: 12px 24px;
@@ -381,6 +389,7 @@
 
     <h1>MusicXML Transposer & Clef Changer</h1>
     <p class="subtitle">Upload a MusicXML file to change clefs and transpose parts.</p>
+    <div id="file-status-log" style="min-height:1.5em;margin-bottom:1em;color:#007bff;font-weight:500;"></div>
     <div class="musicxml-sources">
       <button class="musicxml-toggle" id="musicxml-toggle" aria-expanded="false">
         <span class="icon" id="musicxml-toggle-icon">+</span>
@@ -433,7 +442,7 @@
             </div>
         </div>
 
-        <div class="action-buttons">
+        <div class="action-buttons" id="action-buttons">
             <button class="update-button" id="update-btn">Update Score</button>
             <button class="print-button" id="print-btn">Print Score</button>
             <button class="download-button" id="download-btn">Download as MusicXML</button>
@@ -509,6 +518,8 @@
         // --- Main Application Logic ---
         async function handleFile(file) {
             if (!file) return;
+            // Show loading file status in the status-container
+            updateStatus('file', 'loading', `Loading file "${file.name}"...`);
             // Hide the sample button once any file is loaded
             document.getElementById('load-sample-btn').style.display = 'none';
 
@@ -526,9 +537,13 @@
             appContainer.style.display = 'block';
 
             const ready = await loadPyodideAndMusic21();
-            if (!ready) return;
+            if (!ready) {
+                updateStatus('file', 'error', 'Failed to load file.');
+                return;
+            }
 
             updateStatus('analysis', 'loading', 'Analyzing score...');
+            updateStatus('file', 'success', `Loaded file "${file.name}"`);
 
             // Write file to pyodide FS
             const fileData = await file.arrayBuffer();
@@ -591,7 +606,17 @@ def get_part_details(score_path):
 
 
         function renderPartList(parts) {
-            partList.innerHTML = ''; // Clear previous list
+            // Show the part list and action buttons only when parts are available
+            const plc = document.getElementById('part-list-container');
+            const ab = document.getElementById('action-buttons');
+            if (parts && parts.length > 0) {
+                plc.classList.add('visible');
+                ab.classList.add('visible');
+            } else {
+                plc.classList.remove('visible');
+                ab.classList.remove('visible');
+            }
+            partList.innerHTML = '';
             parts.forEach(part => {
                 const partItem = document.createElement('div');
                 partItem.className = 'part-item';
