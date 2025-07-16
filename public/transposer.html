@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Music21 Part Transposer & Clef Changer</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.0/build/opensheetmusicdisplay.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            line-height: 1.5;
+            color: #333;
+            background-color: #f9fafb;
+        }
+
+        nav {
+            margin: 2rem 0 1.5rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .nav-link {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin: 0 0.25rem;
+        }
+
+        .nav-link:hover {
+            color: #4CAF50;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        #drop-zone {
+            border: 3px dashed #ced4da;
+            border-radius: 12px;
+            padding: 4rem;
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.2rem;
+            background-color: #ffffff;
+            transition: all 0.3s ease;
+        }
+
+        #drop-zone.drag-over {
+            border-color: #4CAF50;
+            background-color: #f0f8f0;
+            color: #333;
+        }
+
+        #drop-zone p {
+            margin: 0.5rem 0 0 0;
+        }
+
+        .status-container {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 1px solid #e1e5e9;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            background: #ccc;
+        }
+
+        .status-indicator.loading {
+            background: #007bff;
+            animation: pulse 1s infinite;
+        }
+
+        .status-indicator.success {
+            background: #28a745;
+        }
+
+        .status-indicator.error {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .app-container {
+            display: none;
+            /* Hidden by default */
+        }
+
+        .part-list-container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #e1e5e9;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .part-item {
+            display: grid;
+            grid-template-columns: 3fr 1fr 1fr 1fr 1fr;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .part-item:last-child {
+            border-bottom: none;
+        }
+
+        .part-header {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .part-name {
+            font-weight: 500;
+        }
+
+        select,
+        input[type="checkbox"] {
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            width: 100%;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            justify-self: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .update-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            background: #007bff;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .update-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .update-button:hover:not(:disabled) {
+            background: #0069d9;
+        }
+
+        .download-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            background: #28a745;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .download-button:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        #score-display {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .print-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            background: #6c757d;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .print-button:hover {
+            background: #5a6268;
+        }
+
+        @media print {
+            body>*:not(.printable-area) {
+                display: none !important;
+            }
+
+            .printable-area {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+            }
+
+            html,
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: #fff !important;
+            }
+
+            #score-display {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="index.html" class="nav-link">Progression</a> |
+        <a href="renderScore.html" class="nav-link">Score Demo</a> |
+        <a href="basic.html" class="nav-link">Basic</a> |
+        <a href="repl.html" class="nav-link">REPL</a> |
+        <a href="transposer.html" class="nav-link">Transposer</a>
+    </nav>
+
+    <h1>MusicXML Transposer & Clef Changer</h1>
+    <p class="subtitle">Upload a MusicXML file to change clefs and transpose parts.</p>
+
+    <div id="drop-zone">
+        <p><strong>Drag & Drop a MusicXML file here</strong></p>
+        <p>or click to select a file</p>
+        <input type="file" id="file-picker" accept=".xml,.musicxml,.mxl" hidden>
+    </div>
+
+    <div class="app-container" id="app">
+        <div class="status-container" id="status-container">
+            <!-- Status items will be injected here -->
+        </div>
+
+        <div class="part-list-container" id="part-list-container">
+            <h2>Score Parts</h2>
+            <div class="part-item part-header">
+                <span>Part Name</span>
+                <span>Original Clef</span>
+                <span>New Clef</span>
+                <span>Transpose (Octave)</span>
+                <span>Hide</span>
+            </div>
+            <div id="part-list">
+                <!-- Part items will be injected here -->
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="update-button" id="update-btn" disabled>Update Score</button>
+            <button class="download-button" id="download-btn">Download Score</button>
+            <button class="print-button" id="print-btn">Print Score</button>
+        </div>
+    </div>
+
+    <div class="printable-area">
+        <div id="score-display"></div>
+    </div>
+
+    <!-- This button is now part of the action-buttons div -->
+
+
+    <script type="text/javascript">
+        const dropZone = document.getElementById('drop-zone');
+        const filePicker = document.getElementById('file-picker');
+        const appContainer = document.getElementById('app');
+        const statusContainer = document.getElementById('status-container');
+        const partList = document.getElementById('part-list');
+        const updateBtn = document.getElementById('update-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const printBtn = document.getElementById('print-btn');
+        const scoreDisplay = document.getElementById('score-display');
+
+        let pyodide;
+        let uploadedFile = null;
+        let currentTransformedXml = null;
+
+        // --- Pyodide and Music21 Loading ---
+        async function loadPyodideAndMusic21() {
+            updateStatus('pyodide', 'loading', 'Loading Pyodide runtime...');
+            try {
+                pyodide = await loadPyodide();
+                updateStatus('pyodide', 'success', 'Pyodide loaded.');
+
+                updateStatus('micropip', 'loading', 'Loading micropip...');
+                await pyodide.loadPackage("micropip");
+                updateStatus('micropip', 'success', 'Micropip loaded.');
+
+                updateStatus('music21', 'loading', 'Installing music21...');
+                await pyodide.runPythonAsync(`
+            import micropip
+            await micropip.install("../dist/music21-9.6.0b3+pyodide-py3-none-any.whl")
+        `);
+                updateStatus('music21', 'success', 'Music21 installed.');
+                return true;
+            } catch (error) {
+                console.error('Pyodide/Music21 loading failed:', error);
+                updateStatus('pyodide', 'error', `Initialization failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        // --- UI Update Functions ---
+        function updateStatus(id, status, message) {
+            let statusItem = document.getElementById(`status-${id}`);
+            if (!statusItem) {
+                statusItem = document.createElement('div');
+                statusItem.id = `status-${id}`;
+                statusItem.className = 'status-item';
+                statusItem.innerHTML = `<div class="status-indicator"></div><span></span>`;
+                statusContainer.appendChild(statusItem);
+            }
+
+            const indicator = statusItem.querySelector('.status-indicator');
+            const text = statusItem.querySelector('span');
+
+            indicator.className = 'status-indicator ' + status;
+            text.textContent = message;
+        }
+
+        // --- Main Application Logic ---
+        async function handleFile(file) {
+            if (!file) return;
+
+            const validTypes = ['application/xml', 'text/xml', 'application/vnd.recordare.musicxml', 'application/vnd.recordare.musicxml+xml'];
+            const validExtensions = ['.xml', '.musicxml', '.mxl'];
+            const fileExtension = file.name.slice(file.name.lastIndexOf('.'));
+
+            if (!validExtensions.includes(fileExtension)) {
+                alert('Invalid file type. Please upload a .xml, .musicxml, or .mxl file.');
+                return;
+            }
+
+            uploadedFile = file;
+            dropZone.style.display = 'none';
+            appContainer.style.display = 'block';
+
+            const ready = await loadPyodideAndMusic21();
+            if (!ready) return;
+
+            updateStatus('analysis', 'loading', 'Analyzing score...');
+
+            // Write file to pyodide FS
+            const fileData = await file.arrayBuffer();
+            pyodide.FS.writeFile(file.name, new Uint8Array(fileData), { encoding: "binary" });
+
+            // Run the analysis script
+            await pyodide.runPythonAsync(`
+from music21 import converter, clef, key, instrument
+import json
+
+def get_part_details(score_path):
+    part_details = []
+    try:
+        score = converter.parse(score_path)
+    except Exception as e:
+        print(f"Error parsing score: {e}")
+        return json.dumps([]) # Return empty list on error
+
+    if not score or not score.parts:
+        return json.dumps([])
+
+    for part in score.parts:
+        part_name = part.partName if part.partName else f"Part {part.id}"
+
+        first_clef = None
+        for el in part.flatten().notesAndRests:
+            if el.getContextByClass('Clef'):
+                first_clef = el.getContextByClass('Clef')
+                break
+        if not first_clef:
+            first_clef = part.getElementsByClass('Clef').first()
+        clef_name = first_clef.name if first_clef else 'N/A'
+        
+        first_instrument = part.getElementsByClass('Instrument').first()
+        instrument_name = first_instrument.instrumentName if first_instrument else 'N/A'
+
+        part_details.append({
+            "id": part.id,
+            "name": part_name,
+            "clef": clef_name,
+            "instrument": instrument_name,
+        })
+    return json.dumps(part_details)
+    `);
+
+            const partDetailsJson = pyodide.globals.get('get_part_details')(file.name);
+            const partDetails = JSON.parse(partDetailsJson);
+
+            if (partDetails.length > 0) {
+                updateStatus('analysis', 'success', `Found ${partDetails.length} parts.`);
+                renderPartList(partDetails);
+                updateBtn.disabled = false;
+                // Auto-update the score on load
+                updateAndRenderScore();
+            } else {
+                updateStatus('analysis', 'error', 'Could not find any parts in the score.');
+            }
+        }
+
+
+        function renderPartList(parts) {
+            partList.innerHTML = ''; // Clear previous list
+            parts.forEach(part => {
+                const partItem = document.createElement('div');
+                partItem.className = 'part-item';
+                partItem.dataset.partId = part.id;
+
+                const clefOptions = ['Treble', 'Bass', 'Alto', 'Tenor']
+                    .map(c => `<option value="${c}" ${part.clef.toLowerCase() === c.toLowerCase() ? 'selected' : ''}>${c}</option>`)
+                    .join('');
+
+                const transposeOptions = `
+            <option value="2">2 (Up)</option>
+            <option value="1">1 (Up)</option>
+            <option value="0" selected>0 (None)</option>
+            <option value="-1">-1 (Down)</option>
+            <option value="-2">-2 (Down)</option>
+        `;
+
+                partItem.innerHTML = `
+            <span class="part-name">${part.name}</span>
+            <span>${part.clef.charAt(0).toUpperCase() + part.clef.slice(1)}</span>
+            <select class="clef-select">${clefOptions}</select>
+            <select class="transpose-select">${transposeOptions}</select>
+            <input type="checkbox" class="hide-checkbox">
+        `;
+                partList.appendChild(partItem);
+            });
+        }
+
+        async function updateAndRenderScore() {
+            updateBtn.disabled = true;
+            updateBtn.textContent = 'Generating...';
+
+            // 1. Collect transformations from the UI
+            const transformations = [];
+            document.querySelectorAll('.part-item[data-part-id]').forEach(item => {
+                const partId = item.dataset.partId;
+                const newClef = item.querySelector('.clef-select').value;
+                const transposeOctaves = parseInt(item.querySelector('.transpose-select').value, 10);
+                const hidePart = item.querySelector('.hide-checkbox').checked;
+
+                transformations.push({
+                    part_id: partId,
+                    new_clef: newClef,
+                    transpose_octaves: transposeOctaves,
+                    hide: hidePart,
+                });
+            });
+
+            // --- JS DEBUGGING ---
+            console.log('Transformations to apply:', transformations);
+
+            // 2. Run the transformation script in Pyodide
+            await pyodide.runPythonAsync(`
+import json
+from music21 import converter, clef
+
+def music21ScoreToXML(obj) -> str:
+    """
+    Prepare a score and return a string dump of the XML.
+    """
+    from music21.musicxml.m21ToXml import GeneralObjectExporter
+    gex = GeneralObjectExporter()
+    score = gex.fromGeneralObject(obj)
+    try:
+        for part in score.parts:
+            if not part.partName:
+                part.partName = " "
+    except:
+        pass
+    bytesOut = gex.parseWellformedObject(score)
+    return bytesOut.decode("utf-8")
+
+def transform_score(score_path, transformations_json):
+    print("--- Python Transformation Log ---")
+    score = converter.parse(score_path)
+    transformations = json.loads(transformations_json)
+    print("Received transformations:", transformations)
+    
+    parts_to_remove = []
+    part_map = {p.id: p for p in score.parts}
+
+    for transform in transformations:
+        part_id = transform.get("part_id")
+        print(f"Processing Part ID: {part_id}")
+        if part_id not in part_map:
+            print(f"  > Part ID not found, skipping.")
+            continue
+
+        part = part_map[part_id]
+        
+        # Handle hiding parts
+        if transform.get("hide"):
+            print(f"  > Marking part for removal.")
+            parts_to_remove.append(part)
+            continue # Skip other transformations if part is hidden
+
+        # Handle clef change
+        new_clef_name = transform.get("new_clef")
+        if new_clef_name:
+            if new_clef_name.lower() == 'treble': new_clef = clef.TrebleClef()
+            elif new_clef_name.lower() == 'bass': new_clef = clef.BassClef()
+            elif new_clef_name.lower() == 'alto': new_clef = clef.AltoClef()
+            elif new_clef_name.lower() == 'tenor': new_clef = clef.TenorClef()
+            else:
+                new_clef = None
+
+            if new_clef:
+                old_clef = part.recurse().getElementsByClass('Clef').first()
+                if old_clef:
+                    print(f"  > Found existing '{old_clef.name}' clef. Replacing it with '{new_clef_name}'.")
+                    part.replace(old_clef, new_clef, recurse=True)
+                else:
+                    print(f"  > No existing clef. Inserting '{new_clef_name}' at start.")
+                    part.insert(0, new_clef)
+        
+        # Handle transposition
+        transpose_octaves = transform.get("transpose_octaves", 0)
+        if transpose_octaves != 0:
+            interval_str = f'P{transpose_octaves * 8}' if transpose_octaves > 0 else f'P{transpose_octaves * -8}'
+            # music21 transposes down for negative intervals, but requires positive string
+            # A bit confusing, but we want octave transposition.
+            if transpose_octaves == 1: part.transpose('P8', inPlace=True)
+            elif transpose_octaves == 2: part.transpose('P15', inPlace=True)
+            elif transpose_octaves == -1: part.transpose('P-8', inPlace=True)
+            elif transpose_octaves == -2: part.transpose('P-15', inPlace=True)
+            print(f"  > Transposing by {transpose_octaves} octave(s).")
+            
+    # Remove hidden parts from the score
+    for part in parts_to_remove:
+        score.remove(part)
+            
+    print("--- End Python Log ---")
+    return music21ScoreToXML(score)
+    `);
+
+            const pyTransformations = JSON.stringify(transformations);
+            const xmlString = pyodide.globals.get('transform_score')(uploadedFile.name, pyTransformations);
+
+            currentTransformedXml = xmlString;
+
+            // 3. Render the score with OSMD
+            renderScore(currentTransformedXml);
+
+            updateBtn.disabled = false;
+            updateBtn.textContent = 'Update Score';
+            downloadBtn.style.display = 'inline-block';
+            printBtn.style.display = 'inline-block';
+        }
+
+        function downloadScore() {
+            if (!currentTransformedXml) {
+                alert("Please update the score first!");
+                return;
+            }
+            // Trigger the download
+            const blob = new Blob([currentTransformedXml], { type: 'application/vnd.recordare.musicxml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transformed_${uploadedFile.name}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+
+        function renderScore(xml_data) {
+            scoreDisplay.innerHTML = '';
+            const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(scoreDisplay, {
+                autoResize: true,
+                backend: "svg",
+                drawTitle: true,
+            });
+            osmd.load(xml_data)
+                .then(() => osmd.render())
+                .catch(e => console.error("OSMD Error:", e));
+        }
+
+        // --- Event Listeners ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('click', () => {
+            filePicker.click();
+        });
+
+        filePicker.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        updateBtn.addEventListener('click', updateAndRenderScore);
+        downloadBtn.addEventListener('click', downloadScore);
+        printBtn.addEventListener('click', () => window.print());
+
+    </script>
+</body>
+
+</html>
