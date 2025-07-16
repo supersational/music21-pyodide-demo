@@ -56,12 +56,13 @@
             font-size: 1.2rem;
             background-color: #ffffff;
             transition: all 0.3s ease;
+            cursor: pointer; /* Add pointer cursor */
         }
-
-        #drop-zone.drag-over {
+        #drop-zone:hover, #drop-zone.drag-over {
             border-color: #4CAF50;
             background-color: #f0f8f0;
             color: #333;
+            cursor: pointer;
         }
 
         #drop-zone p {
@@ -172,11 +173,11 @@
 
         .action-buttons {
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 1rem;
             margin: 2rem 0;
+            align-items: center;
         }
-
         .update-button {
             padding: 12px 24px;
             border: none;
@@ -188,17 +189,41 @@
             font-weight: 600;
             transition: all 0.2s ease;
         }
-
         .update-button:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
         }
-
-        .update-button:hover:not(:disabled) {
-            background: #0069d9;
+        .update-button[title]:hover:after {
+            content: attr(title);
+            position: absolute;
+            background: #222;
+            color: #fff;
+            padding: 0.4em 0.7em;
+            border-radius: 5px;
+            font-size: 0.95em;
+            left: 50%;
+            top: 120%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            z-index: 10;
         }
-
         .download-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            background: #ffd600;
+            color: #333;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin-left: auto;
+            display: none;
+        }
+        .download-button:hover:not(:disabled) {
+            background: #ffe066;
+        }
+        .print-button {
             padding: 12px 24px;
             border: none;
             border-radius: 6px;
@@ -209,40 +234,10 @@
             font-weight: 600;
             transition: all 0.2s ease;
             display: none;
-            /* Hidden by default */
         }
-
-        .download-button:hover:not(:disabled) {
+        .print-button:hover {
             background: #218838;
         }
-
-        #score-display {
-            width: 100%;
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 2rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .print-button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 1.1rem;
-            background: #6c757d;
-            color: #fff;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: none;
-            /* Hidden by default */
-        }
-
-        .print-button:hover {
-            background: #5a6268;
-        }
-
         .musicxml-sources {
             background: #f8f9fa;
             border: 1px solid #e1e5e9;
@@ -327,6 +322,24 @@
             margin-left: 0.1em;
         }
 
+        .btn-accent {
+            background: #ff6b35;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 0 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .btn-accent:hover {
+            background: #e55a2b;
+            transform: translateY(-1px);
+        }
+
         @media print {
             body>*:not(.printable-area) {
                 display: none !important;
@@ -376,7 +389,7 @@
       <div class="musicxml-content" id="musicxml-content" style="display: none;">
         <ul>
           <li>
-            <a href="https://musescore.com/" target="_blank" rel="noopener noreferrer">Musescore</a>
+            <a href="https://musescore.com/sheetmusic/free-download" target="_blank" rel="noopener noreferrer">Musescore</a>
             <span class="desc">Massive library of user-created sheet music for all genres. Most scores are available as MusicXML downloads.</span>
           </li>
           <li>
@@ -394,11 +407,12 @@
         </ul>
       </div>
     </div>
-    <div id="drop-zone">
+    <div id="drop-zone" tabindex="0" aria-label="Drag and drop a MusicXML file here, or click to select a file. You can also use the Load Sample File button below.">
         <p><strong>Drag & Drop a MusicXML file here</strong></p>
         <p>or click to select a file</p>
         <input type="file" id="file-picker" accept=".xml,.musicxml,.mxl" hidden>
     </div>
+    <button id="load-sample-btn" class="btn btn-accent" style="margin:1.5rem auto 0 auto;display:block;">🎼 Load Sample File</button>
 
     <div class="app-container" id="app">
         <div class="status-container" id="status-container">
@@ -420,9 +434,9 @@
         </div>
 
         <div class="action-buttons">
-            <button class="update-button" id="update-btn" disabled>Update Score</button>
-            <button class="download-button" id="download-btn">Download Score</button>
+            <button class="update-button" id="update-btn">Update Score</button>
             <button class="print-button" id="print-btn">Print Score</button>
+            <button class="download-button" id="download-btn">Download as MusicXML</button>
         </div>
     </div>
 
@@ -443,6 +457,7 @@
         const downloadBtn = document.getElementById('download-btn');
         const printBtn = document.getElementById('print-btn');
         const scoreDisplay = document.getElementById('score-display');
+        const loadSampleBtn = document.getElementById('load-sample-btn');
 
         let pyodide;
         let uploadedFile = null;
@@ -494,6 +509,8 @@
         // --- Main Application Logic ---
         async function handleFile(file) {
             if (!file) return;
+            // Hide the sample button once any file is loaded
+            document.getElementById('load-sample-btn').style.display = 'none';
 
             const validTypes = ['application/xml', 'text/xml', 'application/vnd.recordare.musicxml', 'application/vnd.recordare.musicxml+xml'];
             const validExtensions = ['.xml', '.musicxml', '.mxl'];
@@ -519,7 +536,7 @@
 
             // Run the analysis script
             await pyodide.runPythonAsync(`
-from music21 import converter, clef, key, instrument
+from music21 import converter, clef
 import json
 
 def get_part_details(score_path):
@@ -563,7 +580,8 @@ def get_part_details(score_path):
             if (partDetails.length > 0) {
                 updateStatus('analysis', 'success', `Found ${partDetails.length} parts.`);
                 renderPartList(partDetails);
-                updateBtn.disabled = false;
+                // No longer disabling Update Score; always enabled
+                // updateBtn.disabled = false;
                 // Auto-update the score on load
                 updateAndRenderScore();
             } else {
@@ -600,10 +618,10 @@ def get_part_details(score_path):
         `;
                 partList.appendChild(partItem);
             });
+            // No longer disabling Update Score; always enabled
         }
 
         async function updateAndRenderScore() {
-            updateBtn.disabled = true;
             updateBtn.textContent = 'Generating...';
 
             // 1. Collect transformations from the UI
@@ -785,6 +803,25 @@ def transform_score(score_path, transformations_json):
         updateBtn.addEventListener('click', updateAndRenderScore);
         downloadBtn.addEventListener('click', downloadScore);
         printBtn.addEventListener('click', () => window.print());
+
+        loadSampleBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            loadSampleBtn.disabled = true;
+            loadSampleBtn.textContent = 'Loading...';
+            try {
+                const response = await fetch('samples/Wait for the Moment - Keyboard & Bass.musicxml');
+                if (!response.ok) throw new Error('Failed to fetch sample file');
+                const blob = await response.blob();
+                const file = new File([await blob.arrayBuffer()], 'Wait for the Moment - Keyboard & Bass.musicxml', { type: blob.type });
+                await handleFile(file);
+            } catch (err) {
+                alert('Could not load sample file: ' + err.message);
+            } finally {
+                loadSampleBtn.disabled = false;
+                loadSampleBtn.textContent = '🎼 Load Sample File';
+            }
+        });
 
         document.getElementById('musicxml-toggle').addEventListener('click', function() {
             const content = document.getElementById('musicxml-content');
