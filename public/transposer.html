@@ -243,6 +243,90 @@
             background: #5a6268;
         }
 
+        .musicxml-sources {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 0;
+            margin: 2rem 0 2.5rem 0;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.04);
+            max-width: 700px;
+            overflow: hidden;
+        }
+
+        .musicxml-toggle {
+            width: 100%;
+            background: none;
+            border: none;
+            outline: none;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #2c3e50;
+            padding: 1.2rem 2rem 1.2rem 1.5rem;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            cursor: pointer;
+            transition: background 0.15s;
+            user-select: none;
+        }
+
+        .musicxml-toggle:hover, .musicxml-toggle[aria-expanded="true"] {
+            background: #e9ecef;
+        }
+
+        .musicxml-toggle .icon {
+            font-size: 1.3em;
+            color: #007bff;
+            width: 1.2em;
+            display: inline-block;
+            text-align: center;
+            transition: color 0.15s;
+        }
+
+        .musicxml-content {
+            padding: 0 2rem 1.5rem 2rem;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px);}
+            to { opacity: 1; transform: none;}
+        }
+
+        .musicxml-sources ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .musicxml-sources li {
+            margin-bottom: 1.1em;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .musicxml-sources a {
+            color: #007bff;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 1.08em;
+            transition: color 0.15s;
+            margin-bottom: 0.1em;
+        }
+        .musicxml-sources a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        .musicxml-sources .desc {
+            color: #6c757d;
+            font-size: 0.98em;
+            margin-left: 0.1em;
+        }
+
         @media print {
             body>*:not(.printable-area) {
                 display: none !important;
@@ -284,7 +368,32 @@
 
     <h1>MusicXML Transposer & Clef Changer</h1>
     <p class="subtitle">Upload a MusicXML file to change clefs and transpose parts.</p>
-
+    <div class="musicxml-sources">
+      <button class="musicxml-toggle" id="musicxml-toggle" aria-expanded="false">
+        <span class="icon" id="musicxml-toggle-icon">+</span>
+        <span>Where to Find MusicXML Files?</span>
+      </button>
+      <div class="musicxml-content" id="musicxml-content" style="display: none;">
+        <ul>
+          <li>
+            <a href="https://musescore.com/" target="_blank" rel="noopener noreferrer">Musescore</a>
+            <span class="desc">Massive library of user-created sheet music for all genres. Most scores are available as MusicXML downloads.</span>
+          </li>
+          <li>
+            <a href="https://www.mutopiaproject.org/" target="_blank" rel="noopener noreferrer">Mutopia Project</a>
+            <span class="desc">2,100+ public domain classical pieces, all available as MusicXML.</span>
+          </li>
+          <li>
+            <a href="https://imslp.org/" target="_blank" rel="noopener noreferrer">IMSLP / Petrucci Library</a>
+            <span class="desc">The world’s largest public domain music score library. Many user-contributed MusicXML files for classical works.</span>
+          </li>
+          <li>
+            <a href="https://www.soundslice.com/" target="_blank" rel="noopener noreferrer">Soundslice</a>
+            <span class="desc">Interactive platform for learning and transcribing music. Export public scores as MusicXML.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
     <div id="drop-zone">
         <p><strong>Drag & Drop a MusicXML file here</strong></p>
         <p>or click to select a file</p>
@@ -676,6 +785,21 @@ def transform_score(score_path, transformations_json):
         updateBtn.addEventListener('click', updateAndRenderScore);
         downloadBtn.addEventListener('click', downloadScore);
         printBtn.addEventListener('click', () => window.print());
+
+        document.getElementById('musicxml-toggle').addEventListener('click', function() {
+            const content = document.getElementById('musicxml-content');
+            const icon = document.getElementById('musicxml-toggle-icon');
+            const expanded = this.getAttribute('aria-expanded') === 'true';
+            if (expanded) {
+                content.style.display = 'none';
+                icon.textContent = '+';
+                this.setAttribute('aria-expanded', 'false');
+            } else {
+                content.style.display = 'block';
+                icon.textContent = '–';
+                this.setAttribute('aria-expanded', 'true');
+            }
+        });
 
     </script>
 </body>
