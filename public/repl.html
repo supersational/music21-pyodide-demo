@@ -68,7 +68,7 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             margin: 1rem 0;
             display: block;
             width: fit-content;
@@ -76,7 +76,7 @@
 
         .launch-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         }
 
         .launch-button:disabled {
@@ -121,9 +121,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         #repl-container {
@@ -132,7 +140,7 @@
             min-height: 500px;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             margin: 1rem 0;
             border: 1px solid #e1e5e9;
         }
@@ -191,7 +199,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(44,62,80,0.2);
+            box-shadow: 0 2px 4px rgba(44, 62, 80, 0.2);
         }
 
         #run-btn:disabled {
@@ -203,7 +211,7 @@
         #run-btn:hover:not(:disabled) {
             background: #34495e;
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(44,62,80,0.3);
+            box-shadow: 0 4px 8px rgba(44, 62, 80, 0.3);
         }
 
         #file-picker {
@@ -263,7 +271,7 @@
             padding: 1.5rem;
             margin: 1rem 0;
             border-left: 4px solid #0066cc;
-            box-shadow: 0 2px 8px rgba(0,102,204,0.1);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
         }
 
         .examples h3 {
@@ -284,13 +292,13 @@
             font-size: 0.9rem;
             font-weight: 500;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,102,204,0.2);
+            box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
         }
 
         .example-btn:hover {
             background: #0052a3;
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,102,204,0.3);
+            box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
         }
 
         .hidden {
@@ -320,7 +328,7 @@
         <a href="repl.html" class="nav-link">REPL</a> |
         <a href="transposer.html" class="nav-link">Transposer</a>
     </nav>
-    
+
     <h1>🎼 Music21 Interactive REPL</h1>
     <p class="subtitle">Write and execute music21 code interactively in your browser</p>
 
@@ -344,25 +352,25 @@
 
     <div id="repl-container" class="disabled">
         <div id="editor"># Welcome to the Music21 Interactive REPL!
-# 
-# This is a fully interactive Python environment with music21 preloaded.
-# You can write any Python code here and execute it with Shift+Enter or the Run button.
-# 
-# Try some basic music21 examples:
+            #
+            # This is a fully interactive Python environment with music21 preloaded.
+            # You can write any Python code here and execute it with Shift+Enter or the Run button.
+            #
+            # Try some basic music21 examples:
 
-from music21 import note, chord, scale, stream
+            from music21 import note, chord, scale, stream
 
-# Create a simple note
-n = note.Note("C4")
-print(f"Note: {n.name} (octave {n.octave})")
+            # Create a simple note
+            n = note.Note("C4")
+            print(f"Note: {n.name} (octave {n.octave})")
 
-# Create a chord
-c = chord.Chord(["C4", "E4", "G4"])
-print(f"Chord: {c.commonName}")
+            # Create a chord
+            c = chord.Chord(["C4", "E4", "G4"])
+            print(f"Chord: {c.commonName}")
 
-# Create a scale
-s = scale.MajorScale("C")
-print(f"C Major scale: {[n.name for n in s.pitches]}")</div>
+            # Create a scale
+            s = scale.MajorScale("C")
+            print(f"C Major scale: {[n.name for n in s.pitches]}")</div>
         <div id="side">
             <div id="controls">
                 <button id="run-btn" disabled>▶ Run (Shift+Enter)</button>
@@ -488,31 +496,31 @@ except Exception as e:
         async function initializePyodide() {
             const launchBtn = document.getElementById('launch-btn');
             const output = document.getElementById('output');
-            
+
             try {
                 launchBtn.disabled = true;
                 launchBtn.textContent = '⏳ Loading...';
-                
+
                 updateStatus('loading', 'Loading Pyodide...');
                 updateReplStatus('Loading Pyodide...');
-                
+
                 pyodide = await loadPyodide({
                     stdout: (s) => { output.textContent += s + '\\n'; },
                     stderr: (s) => { output.textContent += 'Error: ' + s + '\\n'; }
                 });
-                
+
                 updateStatus('loading', 'Loading micropip...');
                 updateReplStatus('Loading micropip...');
                 await pyodide.loadPackage("micropip");
                 const micropip = pyodide.pyimport("micropip");
-                
+
                 updateStatus('loading', 'Installing music21...');
                 updateReplStatus('Installing music21...');
                 await micropip.install("./dist/music21-9.6.0b3+pyodide-py3-none-any.whl");
 
                 updateStatus('loading', 'Setting up environment...');
                 updateReplStatus('Setting up environment...');
-                
+
                 // Initialize music21 and display welcome message
                 await pyodide.runPythonAsync(`
 import music21
@@ -524,22 +532,22 @@ print("=" * 50)
 
                 updateStatus('success', 'Music21 REPL ready!');
                 updateReplStatus('Ready');
-                
+
                 // Enable the REPL
                 document.getElementById('repl-container').classList.remove('disabled');
                 document.getElementById('run-btn').disabled = false;
                 document.getElementById('examples').style.display = 'block';
                 launchBtn.style.display = 'none';
-                
+
                 // Initialize Ace editor
                 initializeEditor();
-                
+
             } catch (error) {
                 console.error('Failed to initialize:', error);
                 updateStatus('error', 'Failed to load music21. Please refresh the page.');
                 updateReplStatus('Error');
                 output.textContent += `Error: ${error.message}\\n`;
-                
+
                 launchBtn.disabled = false;
                 launchBtn.textContent = '🚀 Launch Music21';
             }
@@ -551,16 +559,16 @@ print("=" * 50)
                 theme: "ace/theme/monokai",
                 fontSize: "14px",
             });
-            
+
             editor.session.setTabSize(4);
             editor.session.setUseSoftTabs(true);
-            
+
             // Load saved code or use default
             const savedCode = localStorage.getItem(STORAGE_KEY);
             if (savedCode) {
                 editor.setValue(savedCode, -1);
             }
-            
+
             // Auto-save on change
             editor.session.on("change", () => {
                 localStorage.setItem(STORAGE_KEY, editor.getValue());
@@ -578,15 +586,15 @@ print("=" * 50)
 
         async function runCode() {
             if (!pyodide || !editor) return;
-            
+
             const code = editor.getValue();
             const output = document.getElementById('output');
             const runBtn = document.getElementById('run-btn');
-            
+
             output.textContent = '';
             updateReplStatus('Running...');
             runBtn.disabled = true;
-            
+
             try {
                 const result = await pyodide.runPythonAsync(code);
                 if (result !== undefined) {
@@ -611,13 +619,13 @@ print("=" * 50)
 
         async function handleFile(file) {
             if (!file || !pyodide) return;
-            
+
             try {
                 const text = await file.text();
                 const bytes = new TextEncoder().encode(text);
                 pyodide.FS.writeFile(file.name, bytes);
                 updateReplStatus(`Loaded "${file.name}"`);
-                
+
                 // If it's a Python file, offer to load it in editor
                 if (file.name.endsWith('.py')) {
                     if (confirm(`Load ${file.name} into the editor?`)) {
@@ -638,7 +646,7 @@ print("=" * 50)
 
         // Drag & drop support
         const dropZone = document.getElementById('controls');
-        
+
         ['dragenter', 'dragover'].forEach((type) => {
             dropZone.addEventListener(type, (e) => {
                 e.preventDefault();
@@ -659,4 +667,4 @@ print("=" * 50)
     </script>
 </body>
 
-</html> 
+</html>
